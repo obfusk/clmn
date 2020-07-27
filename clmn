@@ -76,6 +76,7 @@ def width(s):
 @click.argument("files", nargs = -1, type = click.File())
 @click.pass_context
 def cli(ctx, space, n, files):
+  ctx.color = True
   t_w   = terminal_width()
   c_w   = (t_w // n) - space
   data  = [ l for f in files or [sys.stdin] for l in f ]
