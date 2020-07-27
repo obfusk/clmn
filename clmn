@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+
+# --                                                            ; {{{1
+#
+# File        : clmn
+# Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+# Date        : 2020-07-27
+#
+# Copyright   : Copyright (C) 2020  Felix C. Stegerman
+# Version     : v0.0.1
+# License     : GPLv3+
+#
+# --                                                            ; }}}1
+
+                                                                # {{{1
+r"""
+
+...
+
+
+"""                                                             # }}}1
+
+__version__ = "0.0.1"
+
+import os, re, sys, unicodedata as UD
+
+import click
+
+_ansi_re = re.compile(r"\033\[[;?0-9]*[a-zA-Z]")
+
+def terminal_width(fallback = 80):
+  # NB: don't use shutil.get_terminal_size() as it only checks stdout
+  # (which is not a terminal when piped to less)
+  try:
+    return int(os.environ["COLUMNS"])
+  except (KeyError, ValueError):
+    pass
+  for n in ( getattr(sys, "__std" + x + "__").fileno()
+               for x in "out in err".split() ):
+    try:
+      return os.get_terminal_size(n).columns
+    except OSError:
+      pass
+  return fallback
+
+def process(s, n, sp = 2, ph = "[...]"):
+  ws  = tuple(width(s))
+  w   = sum( wi for wi, x in ws )
+  if w > n:
+    t, l, w = "", 0, 0
+    for wi, x in ws:
+      l += wi
+      if wi == 0 or l <= n - len(ph):
+        t += x; w += wi
+    t += ph; w += len(ph)
+  else:
+    t = s
+  return t + " "*(n - w + sp)
+
+def width(s):
+  i = 0
+  while i < len(s):
+    m = _ansi_re.match(s[i:])
+    if m:
+      yield (0, s[i:i+m.end()])
+      i += m.end()
+    else:
+      yield (2 if UD.east_asian_width(s[i]) in "FW" else 1, s[i])
+      i += 1
+
+@click.command(help = "...")
+@click.option("--space", "-s", type = int, default = 2, help = "...")
+@click.version_option(__version__)
+@click.argument("n", type = int)
+@click.argument("files", nargs = -1, type = click.File())
+@click.pass_context
+def cli(ctx, space, n, files):
+  t_w = terminal_width()
+  c_w = (t_w // n) - space
+  for i, line in enumerate( l for f in files or [sys.stdin] for l in f ):
+    click.echo(process(line.rstrip("\n"), c_w, space), nl = i % n == n-1)
+  if i % n != n-1: click.echo()
+
+if __name__ == "__main__":
+  cli()
+
+# vim: set tw=70 sw=2 sts=2 et fdm=marker :
