@@ -23,7 +23,7 @@ r"""
 
 __version__ = "0.0.1"
 
-import os, re, sys, unicodedata as UD
+import math, os, re, sys, unicodedata as UD
 
 import click
 
@@ -76,11 +76,19 @@ def width(s):
 @click.argument("files", nargs = -1, type = click.File())
 @click.pass_context
 def cli(ctx, space, n, files):
-  t_w = terminal_width()
-  c_w = (t_w // n) - space
-  for i, line in enumerate( l for f in files or [sys.stdin] for l in f ):
-    click.echo(process(line.rstrip("\n"), c_w, space), nl = i % n == n-1)
-  if i % n != n-1: click.echo()
+  t_w   = terminal_width()
+  c_w   = (t_w // n) - space
+  data  = [ l for f in files or [sys.stdin] for l in f ]
+  l     = math.ceil(len(data) / n)
+  for i in range(l):
+    for j in range(0, n):
+      nl = j == n-1
+      try:
+        line = data[i+j*l].rstrip("\n")
+      except IndexError:
+        line = ""
+      click.echo(process(line, c_w, space), nl = nl)
+  if not nl: click.echo()
 
 if __name__ == "__main__":
   cli()
