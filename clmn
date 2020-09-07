@@ -5,7 +5,7 @@
 #
 # File        : clmn
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2020-07-27
+# Date        : 2020-09-07
 #
 # Copyright   : Copyright (C) 2020  Felix C. Stegerman
 # Version     : v0.0.1
@@ -44,16 +44,28 @@ def terminal_width(fallback = 80):
       pass
   return fallback
 
-def process(s, n, sp = 2, ph = "[...]"):
+def process(s, n, sp = 2, ph = "[…]", middle = False):
+  pw  = sum( wi for wi, x in width(ph) )
   ws  = tuple(width(s))
   w   = sum( wi for wi, x in ws )
   if w > n:
-    t, l, w = "", 0, 0
-    for wi, x in ws:
-      l += wi
-      if wi == 0 or l <= n - len(ph):
+    t, w = "", 0
+    if middle:
+      m, t2 = (n - pw + 1) // 2, ""
+      for i, (wi, x) in enumerate(ws):
+        if w + wi > m: break
         t += x; w += wi
-    t += ph; w += len(ph)
+      t += ph; w += pw
+      for j, (wi, x) in reversed(list(enumerate(ws))):
+        if j == i: break
+        if wi == 0 or w + wi <= n:
+          t2 = x + t2; w += wi
+      t += t2
+    else:
+      for wi, x in ws:
+        if wi == 0 or w + wi <= n - pw:
+          t += x; w += wi
+      t += ph; w += pw
   else:
     t = s
   return t + " "*(n - w + sp)
@@ -71,16 +83,18 @@ def width(s):
 
 @click.command(help = "...")
 @click.option("--space", "-s", type = int, default = 2, help = "...")
+@click.option("--placeholder", "-p", default = "[…]", help = "...")
+@click.option("--middle", "-m", is_flag = True, help = "...")
 @click.version_option(__version__)
 @click.argument("n", type = int)
 @click.argument("files", nargs = -1, type = click.File())
 @click.pass_context
-def cli(ctx, space, n, files):
+def cli(ctx, space, placeholder, middle, n, files):
   ctx.color = True
-  t_w   = terminal_width()
-  c_w   = (t_w // n) - space
-  data  = [ l for f in files or [sys.stdin] for l in f ]
-  l     = math.ceil(len(data) / n)
+  t_w       = terminal_width()
+  c_w       = (t_w // n) - space
+  data      = [ l for f in files or [sys.stdin] for l in f ]
+  l         = math.ceil(len(data) / n)
   for i in range(l):
     for j in range(0, n):
       nl = j == n-1
@@ -88,7 +102,7 @@ def cli(ctx, space, n, files):
         line = data[i+j*l].rstrip("\n")
       except IndexError:
         line = ""
-      click.echo(process(line, c_w, space), nl = nl)
+      click.echo(process(line, c_w, space, placeholder, middle), nl = nl)
   if not nl: click.echo()
 
 if __name__ == "__main__":
